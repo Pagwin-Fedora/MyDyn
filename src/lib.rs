@@ -39,3 +39,46 @@ macro_rules! dyn_call {
         unsafe{($ident.vtable.$method)($ident.data, $($args),*)};
     };
 }
+
+/// makes the vtable for you
+#[macro_export]
+macro_rules! gen_vtable_type {
+    // fml
+    ($table_name:ident, $($methods:ident:fn($self_arg:tt, $($meth_args:ident:$meth_types:ty),*)),+) => {
+        struct $table_name {
+            $($methods:fn(gen_vtable_helper!($self_arg)$($meth_args:$meth_types),*)),+
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! gen_vtable_value {
+    ($struct_name:ident, $table_name:ident, $($methods:ident),+)=>{
+        $table_name{
+            $($methods:|data gen_vtable_closure_args!($($meth_args),*)|$struct_name::$methods(data.gen_vtable_helper_2!($self_arg) gen_vtable_closure_args!($($meth_args),*))),+
+        }
+    };
+}
+
+/// Ignore this macro it's used in gen_vtable for convenience
+#[macro_export]
+macro_rules! gen_vtable_helper {
+    (&mut self) => {NonNull<()>,};
+    (&self) => {NonNull<()>,};
+    (self) => {NonNull<()>,};
+    () => {};
+}
+
+/// Ignore this macro it's used in gen_vtable for convenience
+// expecting to use this in the impl
+#[macro_export]
+macro_rules! gen_vtable_helper_2 {
+    ()=>{}
+}
+
+/// Ignore this macro it's used in gen_vtable for convenience
+#[macro_export]
+macro_rules! gen_vtable_closure_args {
+    () => {};
+    ($($args:ident),+) => {, $($args),+};
+}
