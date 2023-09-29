@@ -35,10 +35,7 @@ impl <'a, T, Table:'static> From<(T,&'static Table)> for WideDyn<'a, Table> {
 
 #[macro_export]
 macro_rules! dyn_call {
-    ($ident:ident.$method:ident()) => {
-        $ident.vtable.$method($ident.data);
-    };
-    ($ident:ident.$method:ident($($args:expr),+)) => {
-        $ident.vtable.$method($ident.data, $(args)+,);
+    ($ident:ident.$method:ident($($args:expr),*)) => {
+        unsafe{($ident.vtable.$method)($ident.data, $($args),*)};
     };
 }
