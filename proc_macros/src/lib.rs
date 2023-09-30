@@ -91,6 +91,7 @@ impl parse::Parse for CompleteArg{
 }
 #[proc_macro]
 pub fn transform_self_arg(tokens: TokenStream)->TokenStream{
+    //return "".to_token_stream().into();
     let CompleteArg{paren:_,args:parsed} = parse_macro_input!(tokens as CompleteArg);
     match parsed {
         LeadingArg::None(rem) => {
@@ -98,10 +99,14 @@ pub fn transform_self_arg(tokens: TokenStream)->TokenStream{
             rem.args.into_iter().map(|pair|pair.ident.to_string()+":"+pair.ty.to_token_stream().to_string().as_str()).collect::<Vec<String>>().join(",").to_token_stream().into()
         },
         LeadingArg::ImutRef(_, _, _, rem) | LeadingArg::MutRef(_, _, _, _, rem) | LeadingArg::Owned(_, _, rem)=>{
-            let stream = rem.args.into_iter().map(|pair|pair.ident.to_string()+":"+pair.ty.to_token_stream().to_string().as_str()).collect::<Vec<String>>().join(",").to_token_stream();
-            let mut prefix = "std::ptr::NonNull<()>,".to_token_stream();
-            prefix.extend(stream);
-            prefix.into()
+            let stream = rem.args.into_iter().map(|pair|pair.ident.to_string()+":"+pair.ty.to_token_stream().to_string().as_str()).collect::<Vec<String>>();
+            let mut prefix = quote!{std::ptr::NonNull<()>};
+            if stream.len() > 0 {
+                prefix.extend(",".to_token_stream())
+            }
+            prefix.extend(stream.join(",").to_token_stream());
+            println!("{:?}",quote!{fn(#prefix)});
+            quote!{fn(#prefix)}.into()
         }
     }
 }
@@ -112,16 +117,16 @@ pub fn construct_closure_body_args(tokens: TokenStream)->TokenStream{
     let CompleteArg{paren:_,args:parsed} = parse_macro_input!(tokens as CompleteArg);
     let args = match parsed {
         LeadingArg::None(rem) => {
-            ("",strip_types(rem.args.into_iter().collect()).map(|i|i.to_string()).collect::<Vec<String>>().join(","))
+            ("",strip_types(rem.args).map(|i|i.to_string()).collect::<Vec<String>>().join(","))
         },
         LeadingArg::ImutRef(_, _, _, rem)=>{
-           ("__data.as_ref(),",strip_types(rem.args.into_iter().collect()).map(|i|i.to_string()).collect::<Vec<String>>().join(",")) 
+           ("__data.as_ref(),",strip_types(rem.args).map(|i|i.to_string()).collect::<Vec<String>>().join(",")) 
         },
         LeadingArg::MutRef(_, _, _, _, rem)=>{
-            ("__data.as_mut()",strip_types(rem.args.into_iter().collect()).map(|i|i.to_string()).collect::<Vec<String>>().join(","))
+            ("__data.as_mut()",strip_types(rem.args).map(|i|i.to_string()).collect::<Vec<String>>().join(","))
         },
         LeadingArg::Owned(_, _, rem)=>{
-            ("__data.to_owned()",strip_types(rem.args.into_iter().collect()).map(|i|i.to_string()).collect::<Vec<String>>().join(","))
+            ("__data.to_owned()",strip_types(rem.args).map(|i|i.to_string()).collect::<Vec<String>>().join(","))
         }
     };
     let mut pre = args.0.to_token_stream();

@@ -49,7 +49,7 @@ macro_rules! gen_vtable_type {
     // fml
     ($table_name:ident, $($methods:ident:fn$fn_args:tt),+) => {
         struct $table_name {
-            $($methods:fn(transform_fn_args!($fn_args))),+
+            $($methods:my_dyn::transform_self_arg!($fn_args)),+
         }
     }
 }
@@ -63,26 +63,5 @@ macro_rules! gen_vtable_value {
     };
 }
 
-/// Ignore this macro it's used in gen_vtable for convenience
-#[macro_export]
-macro_rules! gen_vtable_helper {
-    (&mut self) => {NonNull<()>,};
-    (&self) => {NonNull<()>,};
-    (self) => {NonNull<()>,};
-    () => {};
-}
-
-/// Ignore this macro it's used in gen_vtable for convenience
-// expecting to use this in the impl
-#[macro_export]
-macro_rules! gen_vtable_helper_2 {
-    ()=>{}
-}
-
-/// Ignore this macro it's used in gen_vtable for convenience
-#[macro_export]
-macro_rules! gen_vtable_closure_args {
-    () => {};
-    ($($args:ident),+) => {, $($args),+};
-}
-pub use proc_macros::transform_fn_args;
+pub use proc_macros::transform_self_arg;
+pub use proc_macros::construct_closure_body_args;
