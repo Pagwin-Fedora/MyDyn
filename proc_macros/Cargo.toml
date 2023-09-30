@@ -1,10 +1,13 @@
 [package]
-name = "my_dyn"
-version = "0.1.0"
+name = "proc_macros"
+version = "0.9.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+syn = {version = "*", features=["full"]}
+quote = "*"
 
-proc_macros = {path="./proc_macros"}
+[lib]
+proc-macro = true

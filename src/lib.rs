@@ -1,6 +1,9 @@
+extern crate proc_macros;
 use std::marker::PhantomData;
 use core::ptr::NonNull;
 // a lot of this is taken from https://www.youtube.com/watch?v=wU8hQvU8aKM
+
+// TODO: impl drop
 
 /// An implementation which holds the vtable inside of itself(wasting memory) rather than pointing to it
 pub struct ThickDyn<'a, Table>{
@@ -44,9 +47,9 @@ macro_rules! dyn_call {
 #[macro_export]
 macro_rules! gen_vtable_type {
     // fml
-    ($table_name:ident, $($methods:ident:fn($self_arg:tt, $($meth_args:ident:$meth_types:ty),*)),+) => {
+    ($table_name:ident, $($methods:ident:fn$fn_args:tt),+) => {
         struct $table_name {
-            $($methods:fn(gen_vtable_helper!($self_arg)$($meth_args:$meth_types),*)),+
+            $($methods:fn(transform_fn_args!($fn_args))),+
         }
     }
 }
@@ -82,3 +85,4 @@ macro_rules! gen_vtable_closure_args {
     () => {};
     ($($args:ident),+) => {, $($args),+};
 }
+pub use proc_macros::transform_fn_args;
