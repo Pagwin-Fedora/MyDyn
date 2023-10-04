@@ -1,5 +1,6 @@
 extern crate syn;
 extern crate quote;
+extern crate proc_macro2;
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
@@ -77,6 +78,7 @@ impl parse::Parse for LeadingArg {
     }
 }
 struct CompleteArg{
+    #[allow(dead_code)]
     paren:syn::token::Paren,
     args:LeadingArg
 }
@@ -99,12 +101,16 @@ pub fn transform_self_arg(tokens: TokenStream)->TokenStream{
         },
         LeadingArg::ImutRef(_, _, _, rem) | LeadingArg::MutRef(_, _, _, _, rem) | LeadingArg::Owned(_, _, rem)=>{
             let stream = rem.args.into_iter().map(|pair|pair.ident.to_string()+":"+pair.ty.to_token_stream().to_string().as_str()).collect::<Vec<String>>();
-            let mut prefix = quote!{data: std::ptr::NonNull<()>};
+            let mut prefix = quote!{__data: std::ptr::NonNull<()>};
             if stream.len() > 0 {
                 prefix.extend(",".to_token_stream())
             }
             prefix.extend(stream.join(",").to_token_stream());
-            println!("{}",quote!{fn(#prefix)});
+            //super hacky solution
+            let mut prefix:Vec<_> = prefix.into_iter().collect();
+            prefix.pop();
+            let prefix:proc_macro2::TokenStream = prefix.into_iter().collect();
+            //println!("{}",quote!{fn(#prefix)});
             quote!{fn(#prefix)}.into()
         }
     }

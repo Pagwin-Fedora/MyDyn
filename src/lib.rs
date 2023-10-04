@@ -1,3 +1,4 @@
+#![feature(negative_impls)]
 extern crate proc_macros;
 use std::marker::PhantomData;
 use core::ptr::NonNull;
@@ -20,6 +21,18 @@ impl <'a, T, Table> From<(T,Table)> for ThickDyn<'a, Table> {
         }
     }
 }
+impl <'a,T:ConstVtable<Table>, Table> From<T> for ThickDyn<'a, Table> {
+    fn from(value: T) -> Self {
+        ThickDyn{
+            _p: PhantomData::default(),
+            data: NonNull::from(&value).cast(),
+            vtable: T::gen_vtable()
+        }
+    }
+}
+
+impl <'a, T> !ConstVtable<T> for ThickDyn<'a, T>{}
+
 /// Similar to rust's dyn object this is a wide pointer to the vtable
 pub struct WideDyn<'a, Table:'static>{
     _p: PhantomData<&'a ()>,
@@ -54,14 +67,10 @@ macro_rules! gen_vtable_type {
     }
 }
 
-#[macro_export]
-macro_rules! gen_vtable_value {
-    ($struct_name:ident, $table_name:ident, $($methods:ident),+)=>{
-        $table_name{
-            $($methods:|data gen_vtable_closure_args!($($meth_args),*)|$struct_name::$methods(data.gen_vtable_helper_2!($self_arg) gen_vtable_closure_args!($($meth_args),*))),+
-        }
-    };
-}
-
 pub use proc_macros::transform_self_arg;
 pub use proc_macros::construct_closure_body_args;
+/// gen_vtable would be declared const but rust doesn't allow const functions in traits
+/// unfortunately
+pub trait ConstVtable<Table>{
+    fn gen_vtable() -> &'static Table;
+}
