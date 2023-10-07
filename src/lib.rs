@@ -1,4 +1,3 @@
-#![feature(negative_impls)]
 extern crate proc_macros;
 use std::marker::PhantomData;
 use core::ptr::NonNull;
@@ -12,8 +11,8 @@ pub struct ThickDyn<'a, Table>{
     pub data: NonNull<()>,
     pub vtable: Table
 }
-impl <'a, T, Table> From<(T,Table)> for ThickDyn<'a, Table> {
-    fn from(value: (T,Table)) -> Self {
+impl <'a, T, Table:Copy+Clone> From<(T,Table)> for ThickDyn<'a, Table> {
+    fn from(value: (T, Table)) -> Self {
         ThickDyn{
             _p: PhantomData::default(),
             data: NonNull::from(&value.0).cast(),
@@ -21,17 +20,15 @@ impl <'a, T, Table> From<(T,Table)> for ThickDyn<'a, Table> {
         }
     }
 }
-impl <'a,T:ConstVtable<Table>, Table> From<T> for ThickDyn<'a, Table> {
-    fn from(value: T) -> Self {
+impl <'a, T, Table:Copy+Clone> From<(T,&'static Table)> for ThickDyn<'a, Table> {
+    fn from(value: (T, &'static Table)) -> Self {
         ThickDyn{
             _p: PhantomData::default(),
-            data: NonNull::from(&value).cast(),
-            vtable: T::gen_vtable()
+            data: NonNull::from(&value.0).cast(),
+            vtable: *value.1
         }
     }
 }
-
-impl <'a, T> !ConstVtable<T> for ThickDyn<'a, T>{}
 
 /// Similar to rust's dyn object this is a wide pointer to the vtable
 pub struct WideDyn<'a, Table:'static>{
@@ -39,7 +36,7 @@ pub struct WideDyn<'a, Table:'static>{
     pub data: NonNull<()>,
     pub vtable: &'static Table
 }
-impl <'a, T, Table:'static> From<(T,&'static Table)> for WideDyn<'a, Table> {
+impl <'a, T, Table:'static+Clone+Copy> From<(T,&'static Table)> for WideDyn<'a, Table> {
     fn from(value: (T,&'static Table)) -> Self {
         WideDyn{
             _p: PhantomData::default(),
@@ -73,4 +70,15 @@ pub use proc_macros::construct_closure_body_args;
 /// unfortunately
 pub trait ConstVtable<Table>{
     fn gen_vtable() -> &'static Table;
+    fn create_dyn<T:private::DynVal<Self, Table>>(self) -> T where Self:Sized, Table:'static{
+        T::from((self, Self::gen_vtable()))
+    }
 }
+
+mod private {
+    pub trait DynVal<T, Table:'static > where Self:From<(T, &'static Table)>{}
+}
+/// Marker trait for Dyn objects from this crate
+
+impl <'a,T, Table:Clone+Copy> private::DynVal<T, Table> for WideDyn<'a, Table>{}
+impl <'a,T, Table:'static+Clone+Copy> private::DynVal<T, Table> for ThickDyn<'a, Table>{}
